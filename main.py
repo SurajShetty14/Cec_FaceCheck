@@ -5,16 +5,14 @@ import cvzone
 import face_recognition
 import numpy as np
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
-from firebase_admin import storage
+from firebase_admin import credentials, db, storage
 from datetime import datetime
 
 # Initialize Firebase
 cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred, {
-    'databaseURL': "https://cecfacecheck-default-rtdb.firebaseio.com/",
-    'storageBucket': "cecfacecheck.appspot.com"
+    'databaseURL': "https://faceattendancerealtime-ef3ce-default-rtdb.firebaseio.com/",
+    'storageBucket': "faceattendancerealtime-ef3ce.appspot.com"
 })
 
 bucket = storage.bucket()
@@ -74,7 +72,7 @@ while True:
                 imgBackground = cvzone.cornerRect(imgBackground, bbox, rt=0)
                 id = studentIds[matchIndex]
                 if counter == 0:
-                    cvzone.putTextRect(imgBackground,"Loading",(275, 400))
+                    cvzone.putTextRect(imgBackground, "Loading", (275, 400))
                     cv2.imshow("Face Attendance", imgBackground)
                     cv2.waitKey(1)
                     counter = 1
@@ -83,7 +81,12 @@ while True:
             if counter != 0 and id != -1:
                 if counter == 1:
                     # Get the Data
-                    studentInfo = db.reference(f'Students/{id}').get()
+                    try:
+                        studentInfo = db.reference(f'Students/{id}').get()
+                    except Exception as e:
+                        print(f"Error getting student data: {e}")
+                        continue
+
                     if studentInfo is None:
                         print(f"Student data not found for ID: {id}")
                         continue
@@ -98,7 +101,7 @@ while True:
 
                     # Update Data of attendance
                     datetimeObject = datetime.strptime(studentInfo['last_attendance_time'], "%Y-%m-%d %H:%M:%S")
-                    secondsElpapsed = (datetime.now()-datetimeObject).total_seconds()
+                    secondsElpapsed = (datetime.now() - datetimeObject).total_seconds()
                     print(secondsElpapsed)
 
                     if secondsElpapsed > 30:
@@ -112,13 +115,12 @@ while True:
                         imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
 
                 if modeType != 3:
-
-                    if 10<counter<20:
-                        modeType=2
+                    if 10 < counter < 20:
+                        modeType = 2
 
                     imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
 
-                    if counter<=10:
+                    if counter <= 10:
                         # Add text to the background image
                         cv2.putText(imgBackground, str(studentInfo['total_attendance']), (861, 125),
                                     cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
@@ -153,7 +155,6 @@ while True:
     else:
         modeType = 0
         counter = 0
-
 
     cv2.imshow("Face Attendance", imgBackground)
     if cv2.waitKey(1) & 0xFF == ord('q'):
